@@ -1,0 +1,10 @@
+# --- Create / Update User Profile ---
+# class UserProfileView(generics.RetrieveUpdateAPIView):
+#     queryset = UserProfile.objects.all()
+#     serializer_class = UserProfileSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def get_object(self):
+#         # get profile of the logged-in user
+#         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
+#         return profile

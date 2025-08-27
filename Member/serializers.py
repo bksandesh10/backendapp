@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import AuthUser, UserProfile
+from .models import AuthUser, UserProfile, TempUser
 
 
 # --- Serializer for User Signup ---
@@ -48,3 +48,11 @@ class UserWithProfileSerializer(serializers.ModelSerializer):
             UserProfile.objects.create(user=user, **profile_data)
 
         return user
+
+
+
+class TempUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TempUser
+        fields = ['temp_id', 'email', 'username', 'password', 'otp', 'created_at', 'expire_at']
+        read_only_fields = ['temp_id', 'created_at', 'expire_at']

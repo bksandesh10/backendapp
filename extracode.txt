@@ -8,3 +8,26 @@
 #         # get profile of the logged-in user
 #         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
 #         return profile
+
+
+
+
+# --- User Signup View ---
+# class UserSignupView(generics.CreateAPIView):
+#     queryset = AuthUser.objects.all()
+#     serializer_class = AuthUserSerializer
+#     permission_classes = [permissions.AllowAny] 
+
+#     def create(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         user = serializer.save()
+
+#         return Response(
+#             {
+#                 "user_id": user.id,
+#                 "username": user.username,
+#                 "email": user.email
+#             },
+#             status=status.HTTP_201_CREATED
+#         ) 

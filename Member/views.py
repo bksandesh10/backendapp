@@ -12,6 +12,7 @@ from django.http import HttpResponse
 from django.core.validators import validate_email
 from django.core.exceptions import ValidationError  
 from django.utils.timezone import now, timedelta
+from django.contrib.auth import authenticate
 
 
 
@@ -38,6 +39,21 @@ class UserSignupView(APIView):
                 {"status": "error", "message": "Invalid email format."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+
+        if AuthUser.objects.filter(email=email).exists():
+            return Response(
+                {"status": "error", "message": "Email already registered."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 🚨 Check if username already exists in AuthUser
+        if AuthUser.objects.filter(username=username).exists():
+            return Response(
+                {"status": "error", "message": "Username already taken."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 
         # Check if TempUser exists
         temp_user = TempUser.objects.filter(email=email).first()
@@ -92,12 +108,7 @@ class UserSignupView(APIView):
         )
 
 
-# from datetime import timedelta
-# from django.utils.timezone import now
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-# from .models import TempUser, AuthUser  # adjust import as needed
+
 
 class VerifyOTPView(APIView):
     permission_classes = []  # Allow anyone
@@ -167,10 +178,86 @@ class UserProfileView(generics.RetrieveUpdateAPIView, generics.CreateAPIView):
         except AuthUser.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # ✅ Check if profile already exists
+        if UserProfile.objects.filter(user=user).exists():
+            profile = UserProfile.objects.get(user=user)
+            return Response({
+                "status": "error",
+                "message": "Profile already exists.",
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Otherwise create new profile
         data = request.data.copy()
         data["user"] = user.id
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(user=user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        profile = serializer.save(user=user)
+
+        return Response({
+            "status": "success",
+            "message": "Profile created successfully!",
+            "user_id": user.id,
+            "username": user.username,
+            "first_name": profile.first_name,
+            "last_name": profile.last_name,
+            "profile_pic": request.build_absolute_uri(profile.profile_pic.url) if profile.profile_pic else None
+        }, status=status.HTTP_201_CREATED)
+
+    
+
+
+
+class LoginView(APIView):
+    permission_classes = []  # Allow anyone to login
+
+    def post(self, request):
+            email = request.data.get('email')
+            password = request.data.get('password')
+
+            # Validate inputs
+            if not email or not password:
+                return Response(
+                    {"error": "Email and password are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if user exists
+            try:
+                user = AuthUser.objects.get(email=email)
+            except AuthUser.DoesNotExist:
+                return Response(
+                    {"error": "Invalid credentials"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Check if active
+            if not user.is_active:
+                return Response(
+                    {"error": "Account not verified. Please verify your email."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Authenticate user
+            user_auth = authenticate(request, email=email, password=password)
+            if user_auth is None:
+                return Response(
+                    {"error": "Invalid credentials"},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+
+            # Fetch user profile (if exists)
+            profile = getattr(user, 'profile', None)
+
+            return Response(
+                {
+                    "message": "Login successful",
+                    "user_id": user.id,
+                    "email": user.email,
+                    "username": user.username,
+                    "first_name": profile.first_name if profile else "",
+                    "last_name": profile.last_name if profile else "",
+                    "profile_pic": request.build_absolute_uri(profile.profile_pic.url) if profile and profile.profile_pic else None,
+                },
+                status=status.HTTP_200_OK
+            )
